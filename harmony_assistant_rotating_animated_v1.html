@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harmony Assistant – Rotating Roman Ring (Animated)</title>
+<style>
+  body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+         margin: 0; padding: 20px; background: #fafafa; color: #111; }
+  h2 { margin: 0 0 12px 0; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 980px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .card { background: #fff; border: 1px solid #d1d5db; border-radius: 12px; padding: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { border: 1px solid #cbd5e1; border-radius: 999px; padding: 6px 10px; background: #fff; cursor: pointer; }
+  .tag { border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; display:inline-flex; align-items:center; gap:6px; }
+  .small { font-size: 12px; color: #6b7280; }
+  .btn { border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px; background: #fff; cursor: pointer; text-align: left; }
+  .btn:hover { border-color: #94a3b8; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; }
+  th { font-weight: 600; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .right { text-align: right; }
+  .center { display:flex; justify-content:center; }
+  .deg-green { background: #ecfdf5; border-color: #10b981; }
+  .deg-blue  { background: #eff6ff; border-color: #3b82f6; }
+  .deg-yellow{ background: #fef9c3; border-color: #eab308; }
+  .deg-red   { background: #fee2e2; border-color: #ef4444; }
+  .active-outline { box-shadow: 0 0 0 2px #111 inset; }
+  .active-ring { filter: drop-shadow(0 0 0.5px rgba(0,0,0,.2)); }
+  .chip-x { border:none; background:transparent; color:#ef4444; cursor:pointer; font-size:14px; line-height:1; padding:0 2px; }
+  .legend { margin-top:6px; }
+  .legend span{ display:inline-block; padding:3px 8px; border-radius:8px; margin-right:6px; font-size:12px}
+</style>
+</head>
+<body>
+<h2>Harmony Assistant – Rotating Roman Ring <span class="small">(Animated)</span></h2>
+
+<div class="grid">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0">Circle of Fifths</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="toggle7" class="pill" title="Toggle triads / sevenths">Triads</button>
+        <button id="btnClearSel" class="pill" title="Clear active degree">Clear highlight</button>
+      </div>
+    </div>
+    <div class="center"><svg id="ring" width="320" height="320"></svg></div>
+    <div class="small">Selected Key: <b id="selKey">C</b> • Quality: <span id="selQual">major</span></div>
+    <div class="small legend">
+      <span class="deg-green">Tonic family (1,3)</span>
+      <span class="deg-yellow">Dominant (5)</span>
+      <span class="deg-blue">Other diatonic (2,4,6,7)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px 0">Key Signature & Scale</h3>
+    <div class="row" id="scaleRow"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px 0">Roman Numeral Reference <span class="small" id="refMode">(Triads)</span></h3>
+    <table id="romanTable">
+      <thead>
+        <tr><th>Deg</th><th>Roman</th><th>Quality</th><th>Realized</th><th class="right">Add</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px 0">Chord Palette</h3>
+    <div class="row" id="palette"></div>
+    <div class="small">Palette mirrors colors; active degree is outlined.</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px 0">Progression</h3>
+    <div class="row" id="progRow"></div>
+    <div class="small" style="margin-top:6px">Click a chip to select (highlights palette & wheel). Use the × to remove.</div>
+  </div>
+</div>
+
+<script>
+// Theory data
+const ORDER=["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"];
+const SPELL={C:["C","D","E","F","G","A","B"],G:["G","A","B","C","D","E","F#"],D:["D","E","F#","G","A","B","C#"],
+A:["A","B","C#","D","E","F#","G#"],E:["E","F#","G#","A","B","C#","D#"],B:["B","C#","D#","E","F#","G#","A#"],
+"F#":["F#","G#","A#","B","C#","D#","E#"],Db:["Db","Eb","F","Gb","Ab","Bb","C"],Ab:["Ab","Bb","C","Db","Eb","F","G"],
+Eb:["Eb","F","G","Ab","Bb","C","D"],Bb:["Bb","C","D","Eb","F","G","A"],F:["F","G","A","Bb","C","D","E"],
+Am:["A","B","C","D","E","F","G"],Em:["E","F#","G","A","B","C","D"],Bm:["B","C#","D","E","F#","G","A"],
+"F#m":["F#","G#","A","B","C#","D","E"],"C#m":["C#","D#","E","F#","G#","A","B"],"G#m":["G#","A#","B","C#","D#","E","F#"],
+Ebm:["Eb","F","Gb","Ab","Bb","Cb","Db"],Bbm:["Bb","C","Db","Eb","F","Gb","Ab"],Fm:["F","G","Ab","Bb","C","Db","Eb"],
+Cm:["C","D","Eb","F","G","Ab","Bb"],Gm:["G","A","Bb","C","D","Eb","F"],Dm:["D","E","F","G","A","Bb","C"]};
+const MAJOR_R=["I","ii","iii","IV","V","vi","vii°"];
+const MINOR_R=["i","ii°","III","iv","v","VI","VII"];
+
+let currentKey="C", use7=false, progression=[];
+let activeDeg = null;
+
+// Animation state
+let prevAnchor = null;  // last anchor angle used for the Roman ring
+let animFrame = null;
+
+// Helpers
+const $=id=>document.getElementById(id);
+const TWO_PI = Math.PI*2;
+function relMinor(M){const s=SPELL[M]; return s ? s[5]+"m" : "Am";}
+function qualityOf(k){return k.endsWith("m")?"minor":"major";}
+function scaleOf(k){return SPELL[k]||[];}
+function degreeColorClass(deg){
+  if (deg===5) return "deg-yellow";
+  if (deg===1 || deg===3) return "deg-green";
+  return "deg-blue";
+}
+function qualityLabel(deg, isMajor, with7){
+  if (isMajor) {
+    if (with7) return ["maj7","min7","min7","maj7","7","min7","ø7"][deg-1];
+    return ["maj","min","min","maj","maj","min","dim"][deg-1];
+  } else {
+    if (with7) return ["min7","ø7","Maj7","min7","min7","Maj7","7"][deg-1];
+    return ["min","dim","Maj","min","min","Maj","Maj"][deg-1];
+  }
+}
+function roman(deg, isMajor, with7){
+  const base = (isMajor?MAJOR_R:MINOR_R)[deg-1];
+  return base + (with7?"7":"");
+}
+function chordName(deg, scale, isMajor, with7){
+  const note = scale[(deg-1)%7];
+  const q = qualityLabel(deg, isMajor, with7);
+  const triSuffix = (!with7 ? (q==="maj"||q==="Maj"?"":(q.startsWith("min")?"m":(q==="dim"?"°":""))) : "");
+  const sevSuffix = (with7 ? (q==="7"?"7": (q.endsWith("7")?"":"7")) : "");
+  return note + triSuffix + sevSuffix;
+}
+
+// Return angle for where I/i should sit for current key
+function keyAnchorAngle(){
+  let idx = ORDER.indexOf(currentKey);
+  if (idx !== -1) { // major
+    return idx/ORDER.length*TWO_PI - Math.PI/2;
+  }
+  // minor -> align with its relative major slot
+  for (let i=0;i<ORDER.length;i++){
+    if (relMinor(ORDER[i]) === currentKey) {
+      return i/ORDER.length*TWO_PI - Math.PI/2;
+    }
+  }
+  return -Math.PI/2;
+}
+
+// Easing (smooth start/stop)
+function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+
+// Draw the whole wheel, given a specific anchor angle (so we can animate)
+function drawRingWithAnchor(anchor){
+  const svg=$("ring"); svg.innerHTML=""; const C=160,R1=128,R2=92,Rdeg=66;
+  const majors=ORDER, minors=majors.map(relMinor);
+  let html = `<circle cx='${C}' cy='${C}' r='36' fill='#eef2f7' stroke='#cbd5e1'/>` +
+             `<text x='${C}' y='${C}' text-anchor='middle' dominant-baseline='central' font-weight='600' fill='#334155'>${currentKey}</text>`;
+  // Key rings
+  majors.forEach((k,i)=>{
+    const a=i/majors.length*TWO_PI-Math.PI/2, x=C+R1*Math.cos(a), y=C+R1*Math.sin(a);
+    const on = currentKey===k;
+    html += `<g data-k='${k}'><circle cx='${x}' cy='${y}' r='19' fill='${on?"#10b981":"#fff"}' stroke='#cbd5e1'/>`+
+            `<text x='${x}' y='${y}' text-anchor='middle' dominant-baseline='central' fill='${on?"#fff":"#111"}' font-weight='${on?"700":"500"}'>${k}</text></g>`;
+  });
+  minors.forEach((k,i)=>{
+    const a=i/minors.length*TWO_PI-Math.PI/2, x=C+R2*Math.cos(a), y=C+R2*Math.sin(a);
+    const on = currentKey===k;
+    html += `<g data-k='${k}'><rect x='${x-17}' y='${y-11}' width='34' height='22' rx='6' fill='${on?"#10b981":"#fff"}' stroke='#cbd5e1'/>`+
+            `<text x='${x}' y='${y}' text-anchor='middle' dominant-baseline='central' fill='${on?"#fff":"#111"}' font-weight='${on?"700":"500"}'>${k}</text></g>`;
+  });
+  // Roman ring (rotated by anchor)
+  const isMajor = qualityOf(currentKey)==="major";
+  const STEP = TWO_PI/7;
+  for (let i=1;i<=7;i++){
+    const a = anchor + (i-1)*STEP;
+    const x=C+Rdeg*Math.cos(a), y=C+Rdeg*Math.sin(a);
+    const rn = roman(i, isMajor, use7);
+    const cls = degreeColorClass(i);
+    const active = (activeDeg===i);
+    const rx = rn.length>3 ? 18 : 14;
+    const ry = 10;
+    const fill = cls==="deg-green"?"#d1fae5":(cls==="deg-yellow"?"#fef3c7":"#dbeafe");
+    html += `<g data-deg='${i}' class='roman-node'>`+
+            `<ellipse cx='${x}' cy='${y}' rx='${rx}' ry='${ry}' fill='${fill}' stroke='${active?"#111":"#cbd5e1"}' stroke-width='${active?2:1}'/>`+
+            `<text x='${x}' y='${y+0.5}' text-anchor='middle' dominant-baseline='central' class='mono' font-weight='700' fill='#111'>${rn}</text>`+
+            `</g>`;
+  }
+  svg.innerHTML=html;
+  svg.querySelectorAll("g[data-k]").forEach(g=>g.onclick=()=>{ setKey(g.getAttribute("data-k")); });
+  svg.querySelectorAll("g.roman-node").forEach(g=>g.onclick=()=>{
+    const d = parseInt(g.getAttribute("data-deg")); activeDeg=d; progression.push(d);
+    renderProg(); renderPalette(); drawRing(); // re-draw at final anchor (no anim on add)
+  });
+}
+
+// Smoothly animate from prevAnchor -> nextAnchor (the shortest way around)
+function animateToAnchor(nextAnchor){
+  const svg=$("ring");
+  const start = performance.now();
+  const duration = 320; // ms
+  // Initialize prevAnchor if first run
+  if (prevAnchor===null) prevAnchor = nextAnchor;
+  // Compute shortest delta in circular space
+  let delta = nextAnchor - prevAnchor;
+  delta = (delta + Math.PI) % (TWO_PI) - Math.PI; // wrap to [-pi, pi]
+
+  function frame(now){
+    const t = Math.min(1, (now - start)/duration);
+    const eased = easeInOutCubic(t);
+    const a = prevAnchor + delta*eased;
+    drawRingWithAnchor(a);
+    if (t < 1) {
+      animFrame = requestAnimationFrame(frame);
+    } else {
+      prevAnchor = nextAnchor; // snap end
+      animFrame = null;
+    }
+  }
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = requestAnimationFrame(frame);
+}
+
+// Public draw function: decides whether to animate
+function drawRing(){
+  const next = keyAnchorAngle();
+  if (prevAnchor===null) {
+    prevAnchor = next;
+    drawRingWithAnchor(next);
+  } else {
+    animateToAnchor(next);
+  }
+}
+
+// Panels
+function renderScale(){
+  const row=$("scaleRow"); row.innerHTML="";
+  const sc=scaleOf(currentKey);
+  sc.forEach((n,i)=>{
+    const deg=i+1;
+    const chip=document.createElement("span");
+    chip.className="tag "+degreeColorClass(deg) + (activeDeg===deg ? " active-outline": "");
+    chip.textContent=`${deg}:${n}`;
+    chip.onclick=()=>{ activeDeg=deg; refresh(); };
+    row.appendChild(chip);
+  });
+}
+
+function renderRomanReference(){
+  const tbody = document.querySelector("#romanTable tbody");
+  tbody.innerHTML = "";
+  const isMajor = qualityOf(currentKey)==="major";
+  const sc = scaleOf(currentKey);
+  for (let deg=1; deg<=7; deg++){
+    const rn = roman(deg, isMajor, use7);
+    const ql = qualityLabel(deg, isMajor, use7);
+    const nm = chordName(deg, sc, isMajor, use7);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${deg}</td><td class="mono">${rn}</td><td class="mono">${ql}</td><td class="mono">${nm}</td>`+
+                   `<td class="right"><button class="pill" data-add="${deg}" title="Add ${rn}">➕</button></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll("button[data-add]").forEach(b=>{
+    b.onclick = ()=>{ const d=parseInt(b.getAttribute("data-add")); progression.push(d); activeDeg=d; renderProg(); renderPalette(); drawRing(); };
+  });
+}
+
+function renderPalette(){
+  const row=$("palette"); row.innerHTML="";
+  const isMajor = qualityOf(currentKey)==="major";
+  const sc = scaleOf(currentKey);
+  for(let deg=1; deg<=7; deg++){
+    const rn = roman(deg, isMajor, use7);
+    const nm = chordName(deg, sc, isMajor, use7);
+    const btn = document.createElement("button");
+    btn.className="btn "+degreeColorClass(deg) + (activeDeg===deg ? " active-outline" : "");
+    btn.innerHTML = `<div><b class="mono" style="font-size:15px">${rn}</b> &nbsp; <span class="small mono">${nm}</span></div>`;
+    btn.onclick = ()=>{ progression.push(deg); activeDeg=deg; renderProg(); renderPalette(); drawRing(); };
+    row.appendChild(btn);
+  }
+}
+
+function renderProg(){
+  const r=$("progRow"); r.innerHTML="";
+  const isMajor = qualityOf(currentKey)==="major";
+  progression.forEach((deg, idx)=>{
+    const chip = document.createElement("span");
+    chip.className = "tag "+degreeColorClass(deg) + (activeDeg===deg ? " active-outline" : "");
+    chip.innerHTML = `<span class="mono">${roman(deg, isMajor, use7)}</span> <button class="chip-x" title="Remove">×</button>`;
+    chip.onclick = (e)=>{
+      if (e.target.tagName === "BUTTON") { // remove
+        progression.splice(idx,1);
+        if (activeDeg===deg) activeDeg=null;
+        renderProg(); renderPalette(); drawRing();
+      } else { // select
+        activeDeg = deg;
+        renderProg(); renderPalette(); drawRing();
+      }
+    };
+    r.appendChild(chip);
+  });
+}
+
+function setKey(k){
+  if (currentKey === k) return;
+  currentKey = k;
+  activeDeg = null;
+  refresh();
+}
+
+function refresh(){
+  $("selKey").textContent=currentKey;
+  $("selQual").textContent=qualityOf(currentKey);
+  drawRing();            // animate to new anchor
+  renderScale();
+  renderRomanReference();
+  renderPalette();
+  renderProg();
+}
+
+// interactions
+$("toggle7").onclick = ()=>{ use7=!use7; $("toggle7").textContent = use7 ? "Sevenths" : "Triads"; refresh(); };
+$("btnClearSel").onclick = ()=>{ activeDeg=null; refresh(); };
+
+// init
+refresh();
+</script>
+</body>
+</html>
